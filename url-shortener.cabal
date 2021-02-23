@@ -24,4 +24,7 @@ executable url-shortener
                        warp,
                        http-types,
                        blaze-builder,
-                       bytestring
+                       bytestring,
+                       containers,
+                       text,
+                       regex-tdfa >=1.3.1.0 && <1.4
