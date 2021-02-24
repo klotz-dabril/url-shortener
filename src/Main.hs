@@ -1,10 +1,10 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Main where
+module Main (main) where
 
-import Data.ByteString          (ByteString)
 import Data.Foldable            (find)
 import Data.Maybe               (isJust)
+import Data.Traversable         (for)
 import Control.Concurrent.MVar
 import Control.Monad            (join)
 import Network.HTTP.Types
@@ -56,31 +56,36 @@ data RouteStepMatch = RouteStepMatched
 
 
 matchRouteStep :: Text.Text -> Text.Text -> Maybe RouteStepMatch
-matchRouteStep requestStep routeStep | isParamMatch       = Just $ RouteStepParam (Text.pack $ head xs) requestStep
+matchRouteStep requestStep routeStep | isParamMatch       = Just $ RouteStepParam (Text.pack $ head params) requestStep
                                      | isSimplerouteMatch = Just $ RouteStepMatched
                                      | otherwise          = Nothing
-                                     where isParamMatch           = before == "" && length xs == 1 && after == "" :: Bool
-                                           (before, _, after, xs) = (Text.unpack routeStep) =~ ("<(.*)>" :: String) :: (String, String, String, [String])
-                                           isSimplerouteMatch     = simpleRouteMatch /= ""
-                                           simpleRouteMatch       = (Text.unpack requestStep) =~ ("^" ++ (Text.unpack routeStep) ++ "$") :: String
+
+                                     where isParamMatch                = prefix == "" && length params == 1 && suffix == "" :: Bool
+                                           (prefix, _, suffix, params) = (Text.unpack routeStep) =~ ("<(.*)>" :: String) :: (String, String, String, [String])
+
+                                           isSimplerouteMatch          = simpleRouteRegexMatch /= ""
+                                           simpleRouteRegexMatch       = (Text.unpack requestStep) =~ ("^" ++ (Text.unpack routeStep) ++ "$") :: String
 
 
-matchRoute :: [Text.Text] -> [Text.Text] -> Maybe [RouteStepMatch]
-matchRoute requestSteps routeSteps | nRequestSteps /= nRouteSteps = Nothing
-                                   | isRoot                       = Just [RouteStepMatched]
-                                   | otherwise = sequenceA $ zipWith matchRouteStep requestSteps routeSteps
-                                   where nRequestSteps = length requestSteps
-                                         nRouteSteps   = length routeSteps
-                                         isRoot        = nRequestSteps == 0 && nRouteSteps == 0
+
+matchRoute :: Request -> Route -> Maybe [RouteStepMatch]
+matchRoute request route | not isSameMethod             = Nothing
+                         | nRequestSteps /= nRouteSteps = Nothing
+                         | isRoot                       = Just [RouteStepMatched]
+                         | otherwise = sequenceA $ zipWith matchRouteStep requestSteps routeSteps
+                         where nRequestSteps = length requestSteps
+                               nRouteSteps   = length routeSteps
+
+                               requestSteps  = pathInfo request
+                               routeSteps    = getStepsFromRoute route
+
+                               isRoot        = nRequestSteps == 0 && nRouteSteps == 0
+                               isSameMethod  = requestMethod request == routeMethod route
 
 
 actionFromRequestAndRoute :: Request -> Route -> Maybe Action
-actionFromRequestAndRoute request route = do matchRoute requestPathSteps routeSteps
-                                             return action
-
-                                          where action           = routeAction route
-                                                routeSteps       = getStepsFromRoute route
-                                                requestPathSteps = pathInfo request
+actionFromRequestAndRoute request route = do _ <- matchRoute request route
+                                             return $ routeAction route
 
 
 
@@ -91,11 +96,12 @@ getStepsFromRoute x = filter (/= "") $ Text.splitOn "/" $ routePathSteps x
 
 routerMatchesLogger :: Middleware
 routerMatchesLogger app request respond = do putStrLn "## ROUTER MATCHES ##"
-                                             sequenceA . map go $ applicationRoutes
+                                             _ <- for applicationRoutes go
+                                             -- sequenceA . map go $ applicationRoutes
                                              putStrLn "#####################"
                                              app request respond
 
-                                         where go route = putStrLn $ (show . routePathSteps $ route) ++ ": " ++ (show $ matchRoute (pathInfo request) (getStepsFromRoute route))
+                                         where go route = putStrLn $ (show . routePathSteps $ route) ++ ": " ++ (show $ matchRoute request route)
 
 
 
