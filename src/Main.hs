@@ -10,11 +10,17 @@ module Main (main) where
 
 import Control.Applicative
 import Control.Concurrent.MVar
+-- import Data.Traversable               (for)
 import Database.SQLite.Simple
 import Database.SQLite.Simple.FromRow
 import Network.HTTP.Types
 import Network.Wai
-import Network.Wai.Handler.Warp (run)
+import Network.Wai.Parse
+import Network.Wai.Handler.Warp       (run)
+
+
+import qualified Data.ByteString.Lazy as LB
+import qualified Data.Map as Map
 
 
 import RequestLogger
@@ -39,15 +45,24 @@ shortGetAction urlParams _ respond = do putStrLn $ "urlParams: " ++ show urlPara
 
 
 rootPostAction :: Action
-rootPostAction _ _ respond = do conn <- open "test.db"
-                                execute conn "INSERT INTO shorts (full) VALUES (?)" (Only ("atest string 2 3" :: String))
-                                r <- query_ conn "SELECT * from shorts" :: IO [Short]
-                                mapM_ print r
-                                close conn
+rootPostAction _ request respond = do (requestParamsList, _) <- parseRequestBodyEx defaultParseRequestBodyOptions lbsBackEnd request
+                                      let requestParams = Map.fromList requestParamsList
+                                          maybeUrl      = Map.lookup "url" requestParams
+--
+                                          -- safeParams    = for ["url"] $ (flip Map.lookup $ requestParams)
+                                      -- case safeParams of Nothing    -> not_found_action request respond
+                                                         -- Just [url] -> -- conn <- open "test.db"
 
-                                respond $ responseLBS status200
-                                                      [("Content-Type", "text/plain")]
-                                                      "rootPost"
+                                      case maybeUrl of Nothing  -> not_found_action request respond
+                                                       Just url -> -- conn <- open "test.db"
+                                                                   -- execute conn "INSERT INTO shorts (full) VALUES (?)" (Only ("atest string 2 3" :: String))
+                                                                   -- r <- query_ conn "SELECT * from shorts" :: IO [Short]
+                                                                   -- mapM_ print r
+                                                                   -- close conn
+
+                                                                   respond $ responseLBS status200
+                                                                                         [("Content-Type", "text/plain")]
+                                                                                         (LB.fromStrict url)
 
 
 not_found_action :: Application
