@@ -1,5 +1,9 @@
 # url-shortener
 
+This is not an exercise on making production worthy things. This is
+a toy. And yes, there is no need for a router and there are much better
+alternatives out there but it is fun.
+
 ## TODO
 
 - [x] Change the default branch from master to main.

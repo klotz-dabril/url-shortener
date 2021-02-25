@@ -1,4 +1,10 @@
+--
+-- Main.hs
+--
+--
+
 {-# LANGUAGE OverloadedStrings #-}
+
 
 module Main (main) where
 
@@ -8,39 +14,16 @@ import Network.Wai
 import Network.Wai.Handler.Warp (run)
 
 
-import Route
-
-
--- import Debug.Trace
--- import Data.Typeable
-
-
-
-increment :: MVar Int -> IO Int
-increment counterVar = modifyMVar counterVar go
-        where go count = do let count' = count + 1
-                            return (count', count')
-
-
-
-requestCounter :: MVar Int -> Middleware
-requestCounter countRef app request respond = do c <- increment countRef
-                                                 putStrLn $ "COUNTER: " ++ (show c)
-                                                 app request respond
-
-
-
-requestLogger :: Middleware
-requestLogger app request respond = do putStrLn $ "LOGGER: " ++ (show request)
-                                       app request respond
-
-
+import RequestLogger
+import RequestCounter
+import Router
 
 
 shortGetAction :: Action
-shortGetAction _ _ respond = respond $ responseLBS status200
-                                                   [("Content-Type", "text/plain")]
-                                                   "shortGet"
+shortGetAction urlParams _ respond = do putStrLn $ "urlParams: " ++ show urlParams
+                                        respond $ responseLBS status200
+                                                              [("Content-Type", "text/plain")]
+                                                              "shortGet"
 
 
 rootPostAction :: Action
@@ -65,7 +48,6 @@ applicationRoutes = [ makeRoute methodGet  "/<short>" shortGetAction
 
 application :: Application
 application = router applicationRoutes not_found_action
-
 
 
 main :: IO ()

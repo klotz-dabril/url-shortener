@@ -6,7 +6,14 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 
-module Route (makeRoute, Route, router, Action, routerMatchesLogger) where
+module Router ( router
+              , makeRoute
+              , Route
+              , Action
+              , UrlParams
+              , routerMatchesLogger
+        ) where
+
 
 import Data.Foldable            (find)
 import Data.Maybe               (isJust)
@@ -25,13 +32,16 @@ type UrlParams = Map.Map Text.Text Text.Text
 type Action    = UrlParams -> Application
 
 
-data Route = Route { routeMethod    :: Method
-                   , routePathSteps :: Text.Text
-                   , routeAction    :: Action
+data Route = Route { routeMethod :: Method
+                   , routeSteps  :: [Text.Text]
+                   , routeAction :: Action
                    }
 
+
+
 makeRoute :: Method -> Text.Text -> Action -> Route
-makeRoute = Route
+makeRoute method endpoint = let steps = filter (/= "") $ Text.splitOn "/" endpoint
+                             in Route method steps
 
 
 
@@ -76,21 +86,15 @@ matchRouteWithRequest :: Route -> Request -> Maybe [RouteStepMatch]
 matchRouteWithRequest route request | not isSameMethod             = Nothing
                                     | nRequestSteps /= nRouteSteps = Nothing
                                     | isRoot                       = Just [RouteStepMatched]
-                                    | otherwise = sequenceA $ zipWith matchStep requestSteps routeSteps
+                                    | otherwise = sequenceA $ zipWith matchStep requestSteps (routeSteps route)
 
                                     where nRequestSteps = length requestSteps
-                                          nRouteSteps   = length routeSteps
+                                          nRouteSteps   = length (routeSteps route)
 
                                           requestSteps = pathInfo request
-                                          routeSteps   = getStepsFromRoute route
 
                                           isRoot       = nRequestSteps == 0 && nRouteSteps == 0
                                           isSameMethod = requestMethod request == routeMethod route
-
-
-
-getStepsFromRoute :: Route -> [Text.Text]
-getStepsFromRoute x = filter (/= "") $ Text.splitOn "/" $ routePathSteps x
 
 
 
@@ -111,4 +115,4 @@ routerMatchesLogger routes app request respond = do putStrLn "## ROUTER MATCHES 
                                                     putStrLn "#####################"
                                                     app request respond
 
-                                                where go route = putStrLn $ (show . routePathSteps $ route) ++ ": " ++ (show $ matchRouteWithRequest route request)
+                                                where go route = putStrLn $ (show . routeSteps $ route) ++ ": " ++ (show $ matchRouteWithRequest route request)
