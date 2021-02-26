@@ -8,24 +8,18 @@
 
 module Main (main) where
 
-import Control.Applicative
 import Control.Concurrent.MVar
--- import Data.Traversable               (for)
 import Database.SQLite.Simple
-import Database.SQLite.Simple.FromRow
+-- import Database.SQLite.Simple.FromRow
 import Network.HTTP.Types
 import Network.Wai
-import Network.Wai.Parse
 import Network.Wai.Handler.Warp       (run)
-
-
-import qualified Data.ByteString.Lazy as LB
-import qualified Data.Map as Map
 
 
 import RequestLogger
 import RequestCounter
 import Router
+import Extra          (extractBodyParams)
 
 
 
@@ -44,25 +38,31 @@ shortGetAction urlParams _ respond = do putStrLn $ "urlParams: " ++ show urlPara
                                                               "shortGet"
 
 
+
+-- extractBodyParams :: Request -> [LB.ByteString] -> IO (Maybe [LB.ByteString])
+-- extractBodyParams request paramNames = let tupleFromStrict (x_0, x_1) = (LB.fromStrict x_0, LB.fromStrict x_1)
+                                        -- in do (strictRequestParamsList, _) <- parseRequestBodyEx defaultParseRequestBodyOptions lbsBackEnd request
+                                              -- let lazyRequestParamList = tupleFromStrict <$> strictRequestParamsList
+                                                  -- requestParams = Map.fromList lazyRequestParamList
+
+                                              -- return . for paramNames $ (\k -> Map.lookup k requestParams)
+
+
+
 rootPostAction :: Action
-rootPostAction _ request respond = do (requestParamsList, _) <- parseRequestBodyEx defaultParseRequestBodyOptions lbsBackEnd request
-                                      let requestParams = Map.fromList requestParamsList
-                                          maybeUrl      = Map.lookup "url" requestParams
---
-                                          -- safeParams    = for ["url"] $ (flip Map.lookup $ requestParams)
-                                      -- case safeParams of Nothing    -> not_found_action request respond
-                                                         -- Just [url] -> -- conn <- open "test.db"
+rootPostAction _ request respond = do maybeParams <- extractBodyParams request ["url"]
 
-                                      case maybeUrl of Nothing  -> not_found_action request respond
-                                                       Just url -> -- conn <- open "test.db"
-                                                                   -- execute conn "INSERT INTO shorts (full) VALUES (?)" (Only ("atest string 2 3" :: String))
-                                                                   -- r <- query_ conn "SELECT * from shorts" :: IO [Short]
-                                                                   -- mapM_ print r
-                                                                   -- close conn
+                                      case maybeParams of Just [url] -> -- conn <- open "test.db"
+                                                                        -- execute conn "INSERT INTO shorts (full) VALUES (?)" (Only ("atest string 2 3" :: String))
+                                                                        -- r <- query_ conn "SELECT * from shorts" :: IO [Short]
+                                                                        -- mapM_ print r
+                                                                        -- close conn
 
-                                                                   respond $ responseLBS status200
-                                                                                         [("Content-Type", "text/plain")]
-                                                                                         (LB.fromStrict url)
+                                                                        respond $ responseLBS status200
+                                                                                              [("Content-Type", "text/plain")]
+                                                                                              url
+
+                                                          _          -> not_found_action request respond
 
 
 not_found_action :: Application
