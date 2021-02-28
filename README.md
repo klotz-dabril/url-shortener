@@ -11,13 +11,13 @@ alternatives out there but it is fun.
 - [X] Some kind of persistence.
 - [ ] Do something about those Text to String and back again, all mixed with
       regex, mess.
-- [.] The actual url shortening!!
+- [ ] The actual url shortening!!
   - [X] Make it work with the record id as shortened url.
   - [ ] Redirect requests.
   - [ ] Better shortening mechanism.
 
 
 
-## Wishlist
+## WishList
 - [ ] Some way of composing routes.
 - [ ] Actions as Readers.
