@@ -26,10 +26,6 @@ import Router
 import Short
 
 
-import Data.Typeable
-import Debug.Trace
-
-
 
 retrieveAction :: Action
 retrieveAction urlParams request respond = do maybeUrl <- runMaybeT $ do idText  <- MaybeT . return $ Map.lookup "id" urlParams
